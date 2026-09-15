@@ -250,7 +250,8 @@ module ZohoHub
     end
 
     def get_notes
-      body = get(File.join(self.class.request_path, id, "Notes"))
+      fields = "id,Note_Title,Note_Content,Created_Time,Modified_Time,Owner,Created_By,Modified_By,Parent_Id"
+      body = get(File.join(self.class.request_path, id, "Notes"), fields: fields, per_page: 200)
       build_response(body)
     end
 
