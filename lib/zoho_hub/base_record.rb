@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require 'zoho_hub/response'
-require 'zoho_hub/with_connection'
-require 'zoho_hub/with_attributes'
-require 'zoho_hub/with_validations'
-require 'zoho_hub/string_utils'
-require 'zoho_hub/coql'
+require "zoho_hub/response"
+require "zoho_hub/with_connection"
+require "zoho_hub/with_attributes"
+require "zoho_hub/with_validations"
+require "zoho_hub/string_utils"
+require "zoho_hub/coql"
 
 module ZohoHub
   class BaseRecord
@@ -41,16 +41,16 @@ module ZohoHub
       end
 
       def where(params)
-        path = File.join(request_path, 'search')
+        path = File.join(request_path, "search")
 
         if params.size == 1
           params = case params.keys.first
-            when :criteria, :email, :phone, :word
-              params
-            else
-              key = attr_to_zoho_key(params.keys.first)
-              { criteria: "#{key}:equals:#{params.values.first}" }
-            end
+          when :criteria, :email, :phone, :word
+            params
+          else
+            key = attr_to_zoho_key(params.keys.first)
+            {criteria: "#{key}:equals:#{params.values.first}"}
+          end
         end
 
         body = get(path, params)
@@ -62,21 +62,21 @@ module ZohoHub
       end
 
       def count_where(params)
-        path = File.join(request_path, 'actions', 'count')
+        path = File.join(request_path, "actions", "count")
 
         if params.size == 1
           params = case params.keys.first
-            when :criteria, :email, :phone, :word
-              params
-            else
-              key = attr_to_zoho_key(params.keys.first)
-              { criteria: "#{key}:equals:#{params.values.first}" }
-            end
+          when :criteria, :email, :phone, :word
+            params
+          else
+            key = attr_to_zoho_key(params.keys.first)
+            {criteria: "#{key}:equals:#{params.values.first}"}
+          end
         end
 
         body = get(path, params)
         response = build_response(body)
-        data = response.nil? ? 0 : response.data.dig(:count)
+        response.nil? ? 0 : response.data.dig(:count)
       end
 
       def find_by(params)
@@ -101,16 +101,16 @@ module ZohoHub
       end
 
       def fields
-        path = File.join('settings', 'fields')
-        params = { module: request_path }
+        path = File.join("settings", "fields")
+        params = {module: request_path}
         body = get(path, params)
 
         body.dig(:fields) || body
       end
 
       def layout(id)
-        path = File.join('settings', 'layouts', id)
-        params = { module: request_path }
+        path = File.join("settings", "layouts", id)
+        params = {module: request_path}
         body = get(path, params)
 
         body.dig(:layouts).first || body
@@ -120,9 +120,9 @@ module ZohoHub
         new(id: id).get_notes
       end
 
-      def add_note(id:, title: '', content: '')
-        path = File.join(request_path, id, 'Notes')
-        post(path, data: [{ Note_Title: title, Note_Content: content }])
+      def add_note(id:, title: "", content: "")
+        path = File.join(request_path, id, "Notes")
+        post(path, data: [{Note_Title: title, Note_Content: content}])
       end
 
       def all_related(parent_module:, parent_id:)
@@ -176,8 +176,12 @@ module ZohoHub
         data.map { |json| new(json) }
       end
 
-      def query(select_query, all_pages: false)
-        Coql.new(self, select_query, all_pages).call
+      def query(select_query, all_pages: false, page: nil, per_page: nil, offset: nil)
+        Coql.new(self, select_query, all_pages, page: page, per_page: per_page, offset: offset).call
+      end
+
+      def query_rows(select_query, per_page: 1)
+        Coql.new(self, select_query, false, per_page: per_page, raw: true).call
       end
 
       def exists?(id)
@@ -186,7 +190,7 @@ module ZohoHub
         false
       end
 
-      alias exist? exists?
+      alias_method :exist?, :exists?
 
       def build_response(body)
         response = Response.new(body)
@@ -216,10 +220,10 @@ module ZohoHub
 
     def save
       body = if new_record? # create new record
-               post(self.class.request_path, data: [to_params])
-             else # update existing record
-               put(File.join(self.class.request_path, id), data: [to_params])
-             end
+        post(self.class.request_path, data: [to_params])
+      else # update existing record
+        put(File.join(self.class.request_path, id), data: [to_params])
+      end
 
       response = build_response(body)
 
@@ -234,19 +238,19 @@ module ZohoHub
     end
 
     def blueprint_transition(transition_id, data = {})
-      body = put(File.join(self.class.request_path, id, 'actions/blueprint'),
-                 blueprint: [{ transition_id: transition_id, data: data }])
+      body = put(File.join(self.class.request_path, id, "actions/blueprint"),
+        blueprint: [{transition_id: transition_id, data: data}])
 
       build_response(body)
     end
 
     def blueprint_transitions
-      body = get(File.join(self.class.request_path, id, 'actions/blueprint'))
+      body = get(File.join(self.class.request_path, id, "actions/blueprint"))
       build_response(body)
     end
 
     def get_notes
-      body = get(File.join(self.class.request_path, id, 'Notes'))
+      body = get(File.join(self.class.request_path, id, "Notes"))
       build_response(body)
     end
 
