@@ -125,8 +125,9 @@ module ZohoHub
         post(path, data: [{Note_Title: title, Note_Content: content}])
       end
 
-      def all_related(parent_module:, parent_id:)
-        body = get(File.join(parent_module.constantize.request_path, parent_id, request_path))
+      def all_related(parent_module:, parent_id:, fields: nil, **params)
+        params = params.merge(fields: record_fields(fields))
+        body = get(File.join(parent_module.constantize.request_path, parent_id, request_path), params)
         response = build_response(body)
 
         data = response.nil? ? [] : response.data
@@ -163,8 +164,19 @@ module ZohoHub
         build_response(body)
       end
 
+      def record_fields(fields = nil)
+        selected = fields || attributes.map { |name| (name == :id) ? "id" : attr_to_zoho_key(name).to_s }
+        selected = selected.is_a?(String) ? selected.split(",") : Array(selected)
+        selected = selected.uniq
+        raise ArgumentError, "Specify between 1 and 50 fields for the v8 records API; use COQL for wider selects" unless (1..50).cover?(selected.size)
+
+        selected.join(",")
+      end
+
       def all(params = {})
-        params[:page] ||= DEFAULT_PAGE
+        params = params.dup
+        params[:fields] = record_fields(params[:fields])
+        params[:page] ||= DEFAULT_PAGE unless params[:page_token]
         params[:per_page] ||= DEFAULT_RECORDS_PER_PAGE
         params[:per_page] = MIN_RECORDS if params[:per_page] < MIN_RECORDS
 
@@ -204,6 +216,9 @@ module ZohoHub
         raise MandatoryNotFound, response.msg if response.mandatory_not_found?
         raise RecordInBlueprint, response.msg if response.record_in_blueprint?
         raise SyntaxError, response.msg if response.syntax_error?
+        if response.parsed_data.is_a?(Hash) && response.status == "error"
+          raise ZohoAPIError, response.msg || response.code.to_s
+        end
 
         response
       end
