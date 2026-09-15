@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json"
 require "faraday"
 require "faraday/retry"
 require "faraday_middleware"
@@ -41,10 +42,20 @@ module ZohoHub
     end
 
     def base_adapter
-      @public_adapter ||= Faraday.new(url: base_url) do |conn|
+      Faraday.new(url: base_url) do |conn|
         conn.headers = authorization_header if access_token?
+        configure_retry(conn)
         conn.adapter Faraday.default_adapter
       end
+    end
+
+    def get_binary(path, params = {})
+      response = with_refresh { base_adapter.get(path, params) }
+      if response.status >= 400
+        error = error_response(response)
+        raise ZohoAPIError, error.msg || "Zoho download failed (HTTP #{response.status})"
+      end
+      response
     end
 
     def get(path, params = {})
@@ -95,7 +106,7 @@ module ZohoHub
       request_token = @access_token
       http_response = yield
 
-      response = Response.new(http_response.body)
+      response = error_response(http_response)
 
       # Try to refresh the token and try again
       if (response.invalid_token? || response.authentication_failure?) && refresh_token?
@@ -115,9 +126,30 @@ module ZohoHub
         raise ZohoAPIError, response.msg
       end
 
-      raise ZohoAPIError, "Zoho request failed (HTTP #{http_response.status})" if http_response.status >= 400
+      if http_response.status == 429 || http_response.status >= 500
+        raise ZohoAPIError, "Zoho request failed (HTTP #{http_response.status})"
+      end
 
       http_response
+    end
+
+    def error_response(http_response)
+      body = http_response.body
+      if body.is_a?(String) && http_response.status >= 400
+        begin
+          body = JSON.parse(body, symbolize_names: true)
+        rescue JSON::ParserError
+          body = {}
+        end
+      end
+      Response.new(body.is_a?(Hash) ? body : {})
+    end
+
+    def configure_retry(conn)
+      conn.request :retry, max: 3, interval: 0.5, interval_randomness: 0.5,
+        backoff_factor: 2, max_interval: 30, methods: [:get, :head],
+        retry_statuses: [429, 500, 502, 503, 504],
+        retry_if: ->(env, _) { env.method == :post && env.url.path.end_with?("/coql") }
     end
 
     def base_url
@@ -132,14 +164,9 @@ module ZohoHub
     def adapter
       Faraday.new(url: base_url) do |conn|
         conn.headers = authorization_header if access_token?
-        conn.request :retry, max: 3, interval: 0.5, interval_randomness: 0.5,
-          backoff_factor: 2, max_interval: 30, methods: [:get, :head],
-          retry_statuses: [429, 500, 502, 503, 504],
-          retry_if: ->(env, _) { env.method == :post && env.url.path.end_with?("/coql") }
         conn.use FaradayMiddleware::EncodeJson
-        conn.use FaradayMiddleware::ParseJson
-        conn.response :json, parser_options: {symbolize_names: true}
-
+        conn.response :json, content_type: /\bjson$/, parser_options: {symbolize_names: true}
+        configure_retry(conn)
         conn.adapter Faraday.default_adapter
       end
     end

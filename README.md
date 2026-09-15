@@ -511,3 +511,15 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/rikas/
 
 The gem is available as open source under the terms of the
 [MIT License](https://opensource.org/licenses/MIT).
+
+### Request retries, errors, and downloads
+
+The CRM connection uses API v8. GET/HEAD requests and COQL POST reads retry transient 429/500/502/503/504 responses up to three times with backoff. Record-writing POST/PUT/DELETE requests are not automatically replayed. Retry status handling runs before JSON decoding, so an HTML gateway failure can recover on a later attempt.
+
+Structured validation and query errors retain their existing exception types, including `MandatoryNotFound`, `RecordInvalid`, and `InvalidQuery`. Exhausted rate limits and server errors raise `ZohoAPIError` rather than returning an empty successful result.
+
+Attachment helpers use `Connection#get_binary`, which preserves PDF bytes and headers, retries transient read failures, and refreshes expired credentials. A failed download raises before writing a temporary file. `base_adapter` remains a Faraday connection for callers that need direct raw access; each call constructs it with the current token. Direct use of that adapter does not perform the higher-level token-refresh/error handling provided by `get_binary`.
+
+Concurrent expired requests on one connection share a refresh mutex, so a successful refresh is reused by waiting requests. The mutex is process-local.
+
+Connection compatibility regressions are covered in `test/connection_compatibility_test.rb`, alongside the pagination and retry suites. Tests use a fake Faraday adapter and perform no live writes.
