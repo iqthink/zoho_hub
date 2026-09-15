@@ -122,7 +122,7 @@ module ZohoHub
 
       def add_note(id:, title: "", content: "")
         path = File.join(request_path, id, "Notes")
-        post(path, data: [{Note_Title: title, Note_Content: content}])
+        post(path, data: [{Note_Title: title, Note_Content: content, Parent_Id: {module: {api_name: request_path}, id: id.to_s}}])
       end
 
       def all_related(parent_module:, parent_id:, fields: nil, **params)
@@ -266,8 +266,24 @@ module ZohoHub
 
     def get_notes
       fields = "id,Note_Title,Note_Content,Created_Time,Modified_Time,Owner,Created_By,Modified_By,Parent_Id"
-      body = get(File.join(self.class.request_path, id, "Notes"), fields: fields, per_page: 200)
-      build_response(body)
+      params = {fields: fields, per_page: 200, page: 1}
+      notes = []
+      loop do
+        body = get(File.join(self.class.request_path, id, "Notes"), params)
+        response = build_response(body)
+        notes.concat(Array(response&.data))
+        info = body && body[:info]
+        break unless info && info[:more_records] == true
+
+        if info[:next_page_token]
+          params = params.except(:page).merge(page_token: info[:next_page_token])
+        elsif params[:page_token]
+          raise ZohoAPIError, "Missing continuation token for related notes"
+        else
+          params = params.merge(page: params[:page] + 1)
+        end
+      end
+      build_response(data: notes, info: {count: notes.size, more_records: false})
     end
 
     def new_record?

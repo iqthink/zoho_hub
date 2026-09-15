@@ -6,7 +6,7 @@ module ZohoHub
   class BaseRecord
     class << self
       def related_attachments(parent_id:)
-        body = get(File.join(request_path, parent_id, "Attachments"))
+        body = get(File.join(request_path, parent_id, "Attachments"), fields: Attachment.record_fields)
         response = build_response(body)
 
         data = response.nil? ? [] : response.data

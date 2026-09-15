@@ -43,6 +43,41 @@ class ConnectionCompatibilityTest < Minitest::Test
     [status, JSON.generate(data), {"content-type" => "application/json"}]
   end
 
+  def test_note_create_includes_multi_module_parent_without_changing_related_route
+    Adapter.responder = lambda do |env|
+      assert_equal :post, env.method
+      assert_equal "/crm/v8/Contacts/123/Notes", env.url.path
+      payload = JSON.parse(env.body).fetch("data").first
+      assert_equal "Agent Note", payload["Note_Title"]
+      assert_equal "Follow up", payload["Note_Content"]
+      assert_equal({"module" => {"api_name" => "Contacts"}, "id" => "123"}, payload["Parent_Id"])
+      json_response(201, data: [{code: "SUCCESS", status: "success", details: {id: "456"}}])
+    end
+    response = Contact.add_note(id: "123", title: "Agent Note", content: "Follow up")
+    assert_equal "SUCCESS", response.dig(:data, 0, :code)
+    assert_equal 1, Adapter.calls.size
+  end
+
+  def test_attachment_list_requests_required_metadata_fields
+    Adapter.responder = lambda do |env|
+      assert_equal "/crm/v8/Contacts/123/Attachments", env.url.path
+      fields = URI.decode_www_form(env.url.query).to_h.fetch("fields").split(",")
+      assert_includes fields, "id"
+      assert_includes fields, "File_Name"
+      assert_includes fields, "Parent_Id"
+      json_response(200, data: [{id: "456", File_Name: "benefits.pdf"}])
+    end
+    assert_equal "benefits.pdf", Contact.related_attachments(parent_id: "123").first.file_name
+  end
+
+  def test_new_auth_grants_cover_coql_and_user_reads_without_changing_oauth_version
+    uri = Addressable::URI.parse(ZohoHub::Auth.auth_url)
+    scopes = uri.query_values.fetch("scope").split(",")
+    assert_includes scopes, "ZohoCRM.coql.READ"
+    assert_includes scopes, "ZohoCRM.users.READ"
+    assert_equal "/oauth/v2/auth", uri.path
+  end
+
   def test_structured_validation_errors_keep_their_existing_exception_type
     Adapter.responses = [json_response(400, data: [{code: "MANDATORY_NOT_FOUND", message: "required field not found", details: {}}])]
     error = assert_raises(ZohoHub::MandatoryNotFound) { Contact.create(subject: "") }

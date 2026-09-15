@@ -20,6 +20,8 @@ module ZohoHub
       ZohoCRM.settings.all
       ZohoCRM.modules.contacts.all
       ZohoCRM.modules.all
+      ZohoCRM.coql.READ
+      ZohoCRM.users.READ
       ZohoCRM.notifications.all
     ].freeze
 
