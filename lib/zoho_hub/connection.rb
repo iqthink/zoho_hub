@@ -3,7 +3,6 @@
 require "json"
 require "faraday"
 require "faraday/retry"
-require "faraday_middleware"
 require "rainbow"
 require "addressable"
 
@@ -164,8 +163,8 @@ module ZohoHub
     def adapter
       Faraday.new(url: base_url) do |conn|
         conn.headers = authorization_header if access_token?
-        conn.use FaradayMiddleware::EncodeJson
-        conn.response :json, content_type: /\bjson$/, parser_options: {symbolize_names: true}
+        conn.request :json
+        conn.response :json, parser_options: {symbolize_names: true}
         configure_retry(conn)
         conn.adapter Faraday.default_adapter
       end
