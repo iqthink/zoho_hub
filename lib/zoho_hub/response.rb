@@ -7,43 +7,43 @@ module ZohoHub
     end
 
     def invalid_data?
-      error_code?("INVALID_DATA")
+      error_code?('INVALID_DATA')
     end
 
     def invalid_token?
-      error_code?("INVALID_TOKEN")
+      error_code?('INVALID_TOKEN')
     end
 
     def invalid_query?
-      error_code?("INVALID_QUERY")
+      error_code?('INVALID_QUERY')
     end
 
     def internal_error?
-      error_code?("INTERNAL_ERROR")
+      error_code?('INTERNAL_ERROR')
     end
 
     def authentication_failure?
-      error_code?("AUTHENTICATION_FAILURE")
+      error_code?('AUTHENTICATION_FAILURE')
     end
 
     def invalid_module?
-      error_code?("INVALID_MODULE")
+      error_code?('INVALID_MODULE')
     end
 
     def no_permission?
-      error_code?("NO_PERMISSION")
+      error_code?('NO_PERMISSION')
     end
 
     def mandatory_not_found?
-      error_code?("MANDATORY_NOT_FOUND")
+      error_code?('MANDATORY_NOT_FOUND')
     end
 
     def record_in_blueprint?
-      error_code?("RECORD_IN_BLUEPRINT")
+      error_code?('RECORD_IN_BLUEPRINT')
     end
 
     def syntax_error?
-      error_code?("SYNTAX_ERROR")
+      error_code?('SYNTAX_ERROR')
     end
 
     def empty?

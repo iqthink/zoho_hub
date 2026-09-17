@@ -1,22 +1,22 @@
 # frozen_string_literal: true
 
-require "json"
-require "faraday"
-require "faraday/retry"
-require "rainbow"
-require "addressable"
+require 'json'
+require 'faraday'
+require 'faraday/retry'
+require 'rainbow'
+require 'addressable'
 
-require "zoho_hub/response"
+require 'zoho_hub/response'
 
 module ZohoHub
   class Connection
     class << self
       def infer_api_domain
         case ZohoHub.configuration.api_domain
-        when "https://accounts.zoho.com" then "https://www.zohoapis.com"
-        when "https://accounts.zoho.com.cn" then "https://www.zohoapis.com.cn"
-        when "https://accounts.zoho.in" then "https://www.zohoapis.in"
-        when "https://accounts.zoho.eu" then "https://www.zohoapis.eu"
+        when 'https://accounts.zoho.com' then 'https://www.zohoapis.com'
+        when 'https://accounts.zoho.com.cn' then 'https://www.zohoapis.com.cn'
+        when 'https://accounts.zoho.in' then 'https://www.zohoapis.in'
+        when 'https://accounts.zoho.eu' then 'https://www.zohoapis.eu'
         else DEFAULT_DOMAIN
         end
       end
@@ -28,9 +28,9 @@ module ZohoHub
     # with the new parameters returned by the refresh method.
     attr_accessor :on_refresh_cb
 
-    DEFAULT_DOMAIN = "https://www.zohoapis.com"
+    DEFAULT_DOMAIN = 'https://www.zohoapis.com'
 
-    BASE_PATH = "/crm/v8/"
+    BASE_PATH = '/crm/v8/'
 
     def initialize(access_token: nil, api_domain: nil, expires_in: 3600, refresh_token: nil)
       @refresh_mutex = Mutex.new
@@ -109,11 +109,11 @@ module ZohoHub
 
       # Try to refresh the token and try again
       if (response.invalid_token? || response.authentication_failure?) && refresh_token?
-        log "Refreshing outdated token"
+        log 'Refreshing outdated token'
         @refresh_mutex.synchronize do
           if @access_token == request_token
             params = ZohoHub::Auth.refresh_token(@refresh_token)
-            raise InvalidTokenError, "Zoho token refresh failed" unless params[:access_token]
+            raise InvalidTokenError, 'Zoho token refresh failed' unless params[:access_token]
 
             @on_refresh_cb&.call(params)
             @access_token = params[:access_token]
@@ -146,9 +146,11 @@ module ZohoHub
 
     def configure_retry(conn)
       conn.request :retry, max: 3, interval: 0.5, interval_randomness: 0.5,
-        backoff_factor: 2, max_interval: 30, methods: [:get, :head],
-        retry_statuses: [429, 500, 502, 503, 504],
-        retry_if: ->(env, _) { env.method == :post && env.url.path.end_with?("/coql") }
+                           backoff_factor: 2, max_interval: 30, methods: %i[get head],
+                           retry_statuses: [429, 500, 502, 503, 504],
+                           retry_if: lambda { |env, _|
+                             env.method == :post && env.url.path.end_with?('/coql')
+                           }
     end
 
     def base_url
@@ -157,14 +159,14 @@ module ZohoHub
 
     # The authorization header that must be added to every request for authorized requests.
     def authorization_header
-      {"Authorization" => "Zoho-oauthtoken #{@access_token}"}
+      { 'Authorization' => "Zoho-oauthtoken #{@access_token}" }
     end
 
     def adapter
       Faraday.new(url: base_url) do |conn|
         conn.headers = authorization_header if access_token?
         conn.request :json
-        conn.response :json, parser_options: {symbolize_names: true}
+        conn.response :json, parser_options: { symbolize_names: true }
         configure_retry(conn)
         conn.adapter Faraday.default_adapter
       end

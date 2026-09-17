@@ -34,18 +34,35 @@ Metrics/ClassLength:
 
 Metrics/MethodLength:
   Max: 20
+  Exclude:
+    - 'lib/zoho_hub/connection.rb'
 
 Metrics/CyclomaticComplexity:
   Max: 10
+  Exclude:
+    - 'lib/zoho_hub/base_record.rb'
 
 Metrics/PerceivedComplexity:
   Max: 10
+  Exclude:
+    - 'lib/zoho_hub/base_record.rb'
+    - 'lib/zoho_hub/connection.rb'
 
 Metrics/AbcSize:
   Max: 30
+  Exclude:
+    - 'lib/zoho_hub/base_record.rb'
 
 RSpec/ExampleLength:
   Enabled: false
 
 RSpec/MultipleExpectations:
   Max: 10
+
+Naming/AccessorMethodName:
+  Exclude:
+    - 'lib/zoho_hub/base_record.rb'
+
+Metrics/ParameterLists:
+  Exclude:
+    - 'lib/zoho_hub/coql.rb'

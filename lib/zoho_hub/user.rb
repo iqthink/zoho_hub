@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
-require "zoho_hub/with_connection"
-require "zoho_hub/with_attributes"
+require 'zoho_hub/with_connection'
+require 'zoho_hub/with_attributes'
 
 module ZohoHub
   class User
     include WithConnection
     include WithAttributes
 
-    REQUEST_PATH = "users"
+    REQUEST_PATH = 'users'
 
     attributes :country, :current_shift, :microsoft, :state, :fax, :zip,
-      :profile, :full_name, :phone, :status, :role, :city, :street, :id,
-      :first_name, :email, :mobile, :last_name, :category
+               :profile, :full_name, :phone, :status, :role, :city, :street, :id,
+               :first_name, :email, :mobile, :last_name, :category
 
-    def self.all(type = "AllUsers")
+    def self.all(type = 'AllUsers')
       users = all_json_for(type)
       users.map { |json| new(json) }
     end
@@ -34,7 +34,7 @@ module ZohoHub
         response = get(REQUEST_PATH, type: type, page: page, per_page: 200)
         BaseRecord.build_response(response)
         records = response && response[:users]
-        raise ZohoAPIError, "Unexpected users response" unless records.is_a?(Array)
+        raise ZohoAPIError, 'Unexpected users response' unless records.is_a?(Array)
 
         users.concat(records)
         break if records.size < 200 || response.dig(:info, :more_records) == false

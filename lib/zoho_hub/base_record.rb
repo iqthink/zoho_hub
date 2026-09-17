@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require "zoho_hub/response"
-require "zoho_hub/with_connection"
-require "zoho_hub/with_attributes"
-require "zoho_hub/with_validations"
-require "zoho_hub/string_utils"
-require "zoho_hub/coql"
+require 'zoho_hub/response'
+require 'zoho_hub/with_connection'
+require 'zoho_hub/with_attributes'
+require 'zoho_hub/with_validations'
+require 'zoho_hub/string_utils'
+require 'zoho_hub/coql'
 
 module ZohoHub
   class BaseRecord
@@ -41,16 +41,16 @@ module ZohoHub
       end
 
       def where(params)
-        path = File.join(request_path, "search")
+        path = File.join(request_path, 'search')
 
         if params.size == 1
           params = case params.keys.first
-          when :criteria, :email, :phone, :word
-            params
-          else
-            key = attr_to_zoho_key(params.keys.first)
-            {criteria: "#{key}:equals:#{params.values.first}"}
-          end
+                   when :criteria, :email, :phone, :word
+                     params
+                   else
+                     key = attr_to_zoho_key(params.keys.first)
+                     { criteria: "#{key}:equals:#{params.values.first}" }
+                   end
         end
 
         body = get(path, params)
@@ -62,21 +62,21 @@ module ZohoHub
       end
 
       def count_where(params)
-        path = File.join(request_path, "actions", "count")
+        path = File.join(request_path, 'actions', 'count')
 
         if params.size == 1
           params = case params.keys.first
-          when :criteria, :email, :phone, :word
-            params
-          else
-            key = attr_to_zoho_key(params.keys.first)
-            {criteria: "#{key}:equals:#{params.values.first}"}
-          end
+                   when :criteria, :email, :phone, :word
+                     params
+                   else
+                     key = attr_to_zoho_key(params.keys.first)
+                     { criteria: "#{key}:equals:#{params.values.first}" }
+                   end
         end
 
         body = get(path, params)
         response = build_response(body)
-        response.nil? ? 0 : response.data.dig(:count)
+        response.nil? ? 0 : response.data[:count]
       end
 
       def find_by(params)
@@ -101,33 +101,36 @@ module ZohoHub
       end
 
       def fields
-        path = File.join("settings", "fields")
-        params = {module: request_path}
+        path = File.join('settings', 'fields')
+        params = { module: request_path }
         body = get(path, params)
 
-        body.dig(:fields) || body
+        body[:fields] || body
       end
 
       def layout(id)
-        path = File.join("settings", "layouts", id)
-        params = {module: request_path}
+        path = File.join('settings', 'layouts', id)
+        params = { module: request_path }
         body = get(path, params)
 
-        body.dig(:layouts).first || body
+        body[:layouts].first || body
       end
 
       def get_notes(id)
         new(id: id).get_notes
       end
 
-      def add_note(id:, title: "", content: "")
-        path = File.join(request_path, id, "Notes")
-        post(path, data: [{Note_Title: title, Note_Content: content, Parent_Id: {module: {api_name: request_path}, id: id.to_s}}])
+      def add_note(id:, title: '', content: '')
+        path = File.join(request_path, id, 'Notes')
+        post(path,
+             data: [{ Note_Title: title, Note_Content: content,
+                      Parent_Id: { module: { api_name: request_path }, id: id.to_s } }])
       end
 
       def all_related(parent_module:, parent_id:, fields: nil, **params)
         params = params.merge(fields: record_fields(fields))
-        body = get(File.join(parent_module.constantize.request_path, parent_id, request_path), params)
+        body = get(File.join(parent_module.constantize.request_path, parent_id, request_path),
+                   params)
         response = build_response(body)
 
         data = response.nil? ? [] : response.data
@@ -165,12 +168,17 @@ module ZohoHub
       end
 
       def record_fields(fields = nil)
-        selected = fields || attributes.map { |name| (name == :id) ? "id" : attr_to_zoho_key(name).to_s }
-        selected = selected.is_a?(String) ? selected.split(",") : Array(selected)
+        selected = fields || attributes.map do |name|
+          name == :id ? 'id' : attr_to_zoho_key(name).to_s
+        end
+        selected = selected.is_a?(String) ? selected.split(',') : Array(selected)
         selected = selected.uniq
-        raise ArgumentError, "Specify between 1 and 50 fields for the v8 records API; use COQL for wider selects" unless (1..50).cover?(selected.size)
+        unless (1..50).cover?(selected.size)
+          raise ArgumentError,
+                'Specify between 1 and 50 fields for the v8 records API; use COQL for wider selects'
+        end
 
-        selected.join(",")
+        selected.join(',')
       end
 
       def all(params = {})
@@ -202,7 +210,7 @@ module ZohoHub
         false
       end
 
-      alias_method :exist?, :exists?
+      alias exist? exists?
 
       def build_response(body)
         response = Response.new(body)
@@ -216,7 +224,7 @@ module ZohoHub
         raise MandatoryNotFound, response.msg if response.mandatory_not_found?
         raise RecordInBlueprint, response.msg if response.record_in_blueprint?
         raise SyntaxError, response.msg if response.syntax_error?
-        if response.parsed_data.is_a?(Hash) && response.status == "error"
+        if response.parsed_data.is_a?(Hash) && response.status == 'error'
           raise ZohoAPIError, response.msg || response.code.to_s
         end
 
@@ -235,10 +243,10 @@ module ZohoHub
 
     def save
       body = if new_record? # create new record
-        post(self.class.request_path, data: [to_params])
-      else # update existing record
-        put(File.join(self.class.request_path, id), data: [to_params])
-      end
+               post(self.class.request_path, data: [to_params])
+             else # update existing record
+               put(File.join(self.class.request_path, id), data: [to_params])
+             end
 
       response = build_response(body)
 
@@ -253,23 +261,24 @@ module ZohoHub
     end
 
     def blueprint_transition(transition_id, data = {})
-      body = put(File.join(self.class.request_path, id, "actions/blueprint"),
-        blueprint: [{transition_id: transition_id, data: data}])
+      body = put(File.join(self.class.request_path, id, 'actions/blueprint'),
+                 blueprint: [{ transition_id: transition_id, data: data }])
 
       build_response(body)
     end
 
     def blueprint_transitions
-      body = get(File.join(self.class.request_path, id, "actions/blueprint"))
+      body = get(File.join(self.class.request_path, id, 'actions/blueprint'))
       build_response(body)
     end
 
     def get_notes
-      fields = "id,Note_Title,Note_Content,Created_Time,Modified_Time,Owner,Created_By,Modified_By,Parent_Id"
-      params = {fields: fields, per_page: 200, page: 1}
+      fields = 'id,Note_Title,Note_Content,Created_Time,Modified_Time,' \
+               'Owner,Created_By,Modified_By,Parent_Id'
+      params = { fields: fields, per_page: 200, page: 1 }
       notes = []
       loop do
-        body = get(File.join(self.class.request_path, id, "Notes"), params)
+        body = get(File.join(self.class.request_path, id, 'Notes'), params)
         response = build_response(body)
         notes.concat(Array(response&.data))
         info = body && body[:info]
@@ -278,12 +287,12 @@ module ZohoHub
         if info[:next_page_token]
           params = params.except(:page).merge(page_token: info[:next_page_token])
         elsif params[:page_token]
-          raise ZohoAPIError, "Missing continuation token for related notes"
+          raise ZohoAPIError, 'Missing continuation token for related notes'
         else
           params = params.merge(page: params[:page] + 1)
         end
       end
-      build_response(data: notes, info: {count: notes.size, more_records: false})
+      build_response(data: notes, info: { count: notes.size, more_records: false })
     end
 
     def new_record?
