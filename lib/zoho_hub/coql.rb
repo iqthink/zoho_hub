@@ -11,59 +11,36 @@ module ZohoHub
     PAGE_SIZE = 2000
     MAX_OFFSET = 100_000
 
-    def initialize(klass, query, all_pages: false, page: nil, per_page: nil, offset: nil,
+    def initialize(klass, query, all_pages = false, page: nil, per_page: nil, offset: nil,
                    raw: false)
       @klass = klass
       @query = query
       @all_pages = all_pages
       @page = page
-      @raw = raw
-
-      @per_page = calculate_per_page(per_page, raw, all_pages, page, offset)
-      validate_per_page(@per_page)
-      validate_page(page)
-      validate_pagination_params(page, offset, all_pages)
-
-      @offset = calculate_offset(offset, page, @per_page)
-      validate_offset(@offset)
-      @single_page = !page.nil? || !offset.nil?
-    end
-
-    private
-
-    def calculate_per_page(per_page, raw, all_pages, page, offset)
       default_size = all_pages || page || offset ? PAGE_SIZE : 200
-      per_page || (raw ? 1 : default_size)
-    end
-
-    def validate_per_page(per_page)
-      return if per_page.is_a?(Integer) && (1..PAGE_SIZE).cover?(per_page)
-
-      raise ArgumentError, 'per_page must be an integer from 1 to 2000'
-    end
-
-    def validate_page(page)
-      return if page.nil?
-      return if page.is_a?(Integer) && page >= 1
-
-      raise ArgumentError, 'page must be a positive integer'
-    end
-
-    def validate_pagination_params(page, offset, all_pages)
+      @per_page = per_page || (raw ? 1 : default_size)
+      unless @per_page.is_a?(Integer) && (1..PAGE_SIZE).cover?(@per_page)
+        raise ArgumentError,
+              'per_page must be an integer from 1 to 2000'
+      end
+      if page && (!page.is_a?(Integer) || page < 1)
+        raise ArgumentError,
+              'page must be a positive integer'
+      end
       raise ArgumentError, 'page and offset cannot be combined' if page && offset
-      return unless all_pages && (page || offset)
+      if all_pages && (page || offset)
+        raise ArgumentError,
+              'all_pages cannot be combined with page or offset'
+      end
 
-      raise ArgumentError, 'all_pages cannot be combined with page or offset'
-    end
+      @offset = offset || (((page || 1) - 1) * @per_page)
+      unless @offset.is_a?(Integer) && @offset >= 0
+        raise ArgumentError,
+              'offset must be a nonnegative integer'
+      end
 
-    def calculate_offset(offset, page, per_page)
-      offset || (((page || 1) - 1) * per_page)
-    end
-
-    def validate_offset(offset)
-      return if offset.is_a?(Integer) && offset >= 0
-
-      raise ArgumentError, 'offset must be a nonnegative integer'
+      @raw = raw
+      @single_page = !page.nil? || !offset.nil?
     end
 
     def call
@@ -87,6 +64,8 @@ module ZohoHub
       end
       records
     end
+
+    private
 
     def parse(body)
       return [[], false] if body.nil? || body.empty?
