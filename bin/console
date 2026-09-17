@@ -8,16 +8,16 @@ require 'dotenv'
 Dotenv.load
 
 ZohoHub.configure do |config|
-  config.client_id    = ENV['ZOHO_CLIENT_ID']
-  config.secret       = ENV['ZOHO_SECRET']
-  config.redirect_uri = ENV['ZOHO_REDIRECT_URI']
+  config.client_id    = ENV.fetch('ZOHO_CLIENT_ID', nil)
+  config.secret       = ENV.fetch('ZOHO_SECRET', nil)
+  config.redirect_uri = ENV.fetch('ZOHO_REDIRECT_URI', nil)
   config.api_domain   = ENV['ZOHO_API_DOMAIN'] if ENV['ZOHO_API_DOMAIN']
   config.debug        = ENV['ZOHO_DEBUG'] || false
 end
 
 puts 'Setting up connection...'
 
-ZohoHub.setup_connection(access_token: ENV['ZOHO_ACCESS_TOKEN'])
+ZohoHub.setup_connection(access_token: ENV.fetch('ZOHO_ACCESS_TOKEN', nil))
 send(:include, ZohoHub)
 
 require 'pry'
