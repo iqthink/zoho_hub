@@ -30,6 +30,9 @@ module ZohoHub
 
     DEFAULT_DOMAIN = 'https://www.zohoapis.com'
 
+    OPEN_TIMEOUT = 5
+    READ_TIMEOUT = 20
+
     BASE_PATH = '/crm/v8/'
 
     def initialize(access_token: nil, api_domain: nil, expires_in: 3600, refresh_token: nil)
@@ -43,6 +46,7 @@ module ZohoHub
     def base_adapter
       Faraday.new(url: base_url) do |conn|
         conn.headers = authorization_header if access_token?
+        configure_timeouts(conn)
         configure_retry(conn)
         conn.adapter Faraday.default_adapter
       end
@@ -144,6 +148,11 @@ module ZohoHub
       Response.new(body.is_a?(Hash) ? body : {})
     end
 
+    def configure_timeouts(conn)
+      conn.options.open_timeout = OPEN_TIMEOUT
+      conn.options.timeout = READ_TIMEOUT
+    end
+
     def configure_retry(conn)
       conn.request :retry, max: 3, interval: 0.5, interval_randomness: 0.5,
                            backoff_factor: 2, max_interval: 30, methods: %i[get head],
@@ -167,6 +176,7 @@ module ZohoHub
         conn.headers = authorization_header if access_token?
         conn.request :json
         conn.response :json, parser_options: { symbolize_names: true }
+        configure_timeouts(conn)
         configure_retry(conn)
         conn.adapter Faraday.default_adapter
       end

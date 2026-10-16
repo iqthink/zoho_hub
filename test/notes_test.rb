@@ -31,25 +31,48 @@ class NotesTest < Minitest::Test
     assert_equal 'Body', response.data.first[:Note_Content]
   end
 
-  def test_notes_follow_numbered_pages_and_tokens_until_more_records_is_false
+  def test_notes_follow_numbered_pages_and_ignore_page_tokens
     contact = Contact.new(id: '123')
     calls = []
     responses = [
-      { data: 200.times.map { |i| { id: i.to_s } }, info: { more_records: true } },
-      { data: [{ id: '200' }], info: { more_records: true, next_page_token: 'cursor' } },
-      { data: [{ id: '201' }], info: { more_records: false, next_page_token: 'ignored' } }
+      { data: 200.times.map { |i| { id: i.to_s } }, info: { more_records: true, next_page_token: 'cursor' } },
+      { data: [{ id: '200' }], info: { more_records: false } }
     ]
     contact.define_singleton_method(:get) do |_, params|
       calls << params
       responses.shift
     end
     response = contact.get_notes
-    assert_equal 202, response.data.size
-    assert_equal 202, response.data.map { |note| note[:id] }.uniq.size
-    assert_equal([1, 2, nil], calls.map { |params| params[:page] })
-    assert_equal 'cursor', calls.last[:page_token]
+    assert_equal 201, response.data.size
+    assert_equal([1, 2], calls.map { |params| params[:page] })
+    assert(calls.none? { |params| params.key?(:page_token) })
     assert_equal false, response.info[:more_records]
     assert_empty responses
+  end
+
+  def test_notes_stop_when_zoho_repeats_a_page
+    contact = Contact.new(id: '123')
+    page = 200.times.map { |i| { id: i.to_s } }
+    calls = 0
+    contact.define_singleton_method(:get) do |_, _|
+      calls += 1
+      { data: page, info: { more_records: true, next_page_token: "t#{calls}" } }
+    end
+    response = contact.get_notes
+    assert_equal 2, calls
+    assert_equal 200, response.data.size
+  end
+
+  def test_notes_stop_at_max_pages
+    contact = Contact.new(id: '123')
+    calls = 0
+    contact.define_singleton_method(:get) do |_, params|
+      calls += 1
+      { data: [{ id: params[:page].to_s }], info: { more_records: true } }
+    end
+    response = contact.get_notes
+    assert_equal ZohoHub::BaseRecord::NOTES_MAX_PAGES, calls
+    assert_equal true, response.info[:more_records]
   end
 
   def test_notes_with_no_content_preserve_empty_data_array

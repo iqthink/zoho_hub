@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'set'
 require 'zoho_hub/response'
 require 'zoho_hub/with_connection'
 require 'zoho_hub/with_attributes'
@@ -272,27 +273,36 @@ module ZohoHub
       build_response(body)
     end
 
-    def get_notes
-      fields = 'id,Note_Title,Note_Content,Created_Time,Modified_Time,' \
-               'Owner,Created_By,Modified_By,Parent_Id'
-      params = { fields: fields, per_page: 200, page: 1 }
-      notes = []
-      loop do
-        body = get(File.join(self.class.request_path, id, 'Notes'), params)
-        response = build_response(body)
-        notes.concat(Array(response&.data))
-        info = body && body[:info]
-        break unless info && info[:more_records] == true
+    NOTES_PER_PAGE = 200
+    NOTES_MAX_PAGES = 10
 
-        if info[:next_page_token]
-          params = params.except(:page).merge(page_token: info[:next_page_token])
-        elsif params[:page_token]
-          raise ZohoAPIError, 'Missing continuation token for related notes'
-        else
-          params = params.merge(page: params[:page] + 1)
-        end
+    def get_notes
+      notes = []
+      seen_ids = Set.new
+      more_records = false
+
+      (1..NOTES_MAX_PAGES).each do |page|
+        body = get(File.join(self.class.request_path, id, 'Notes'), notes_params(page))
+        fresh = Array(build_response(body)&.data).reject { |note| seen_ids.include?(note[:id]) }
+        break if fresh.empty?
+
+        fresh.each { |note| seen_ids << note[:id] }
+        notes.concat(fresh)
+
+        info = body && body[:info]
+        more_records = info.is_a?(Hash) && info[:more_records] == true
+        break unless more_records
       end
-      build_response(data: notes, info: { count: notes.size, more_records: false })
+
+      build_response(data: notes, info: { count: notes.size, more_records: more_records })
+    end
+
+    def notes_params(page)
+      {
+        fields: 'id,Note_Title,Note_Content,Created_Time,Modified_Time,Owner,Created_By,Modified_By,Parent_Id',
+        per_page: NOTES_PER_PAGE,
+        page: page
+      }
     end
 
     def new_record?
